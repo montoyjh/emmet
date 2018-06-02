@@ -140,6 +140,60 @@ class MPWorksCompatibilityBuilder(Builder):
         self.mpworks_tasks.close()
 
 
+class MissingMaterialsBuilder(MPWorksCompatibilityBuilder):
+    """
+    Quick builder to get all the missing materials and convert
+    """
+    def __init__(self, new_materials, old_materials, mpworks_tasks,
+                 atomate_tasks, **kwargs):
+        self.new_materials = new_materials
+        self.old_materials = old_materials
+        super(MissingMaterialsBuilder, self).__init__(
+            mpworks_tasks, atomate_tasks, redo_task_ids=False,
+            **kwargs)
+
+    def connect(self):
+        super(MissingMaterialsBuilder, self).connect()
+        self.new_materials.connect()
+        self.old_materials.connect()
+
+    def get_items(self):
+        new_mp_ids = self.new_materials.distinct("task_id")
+        old_mp_ids = self.old_materials.distinct("task_id")
+        missing_materials = list(set(old_mp_ids) - set(new_mp_ids))
+        logger.info("There are {} missing materials".format(len(
+            missing_materials)))
+        self.atomate_tasks.ensure_index("task_id")
+        # import nose; nose.tools.set_trace()
+        # self.mpworks_tasks.ensure_index("task_id")
+        self.total = len(missing_materials)
+        for mp_id in missing_materials:
+            logger.info("Finding old task")
+            task = self.mpworks_tasks.query_one(criteria={"task_id": mp_id})
+            if not task:
+                import nose; nose.tools.set_trace()
+            logger.info("Finding new materials doc")
+            old_doc = self.old_materials.query_one(criteria={"task_id": mp_id})
+            yield task, old_doc
+
+    def process_item(self, item):
+        task, old_doc = item
+        # import nose; nose.tools.set_trace()
+        if not task:
+            logger.info("No task for {}".format(old_doc['task_id']))
+        atomate_doc = super(MissingMaterialsBuilder, self).process_item(
+            (task, task['task_id']))
+        checks = atomate_doc['formula_pretty'] == old_doc['pretty_formula']
+        checks = checks and atomate_doc['nsites'] == old_doc['nsites']
+        if not checks:
+            # import nose; nose.tools.set_trace()
+            logger.info("Check failed for {}".format(task['task_id']))
+            return None
+        else:
+            logger.info("Processed {}".format(task['task_id']))
+            return atomate_doc
+
+
 def convert_mpworks_to_atomate(mpworks_doc, update_mpworks=True):
     """
     Function to convert an mpworks document into an atomate
