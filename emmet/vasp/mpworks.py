@@ -96,7 +96,10 @@ class MPWorksCompatibilityBuilder(Builder):
             counter.find_one_and_update({"_id": "taskid"}, {"$inc": {"c": count}})
 
         for n, task in enumerate(tasks_to_convert):
-            new_task_id = n + starting_taskid
+            if self.redo_task_ids:
+                new_task_id = n + starting_taskid
+            else:
+                new_task_id = task['task_id']
             logger.debug("Processing item: {}->{}, {} of {}".format(
                 task['task_id'], new_task_id, n, count))
             yield task, new_task_id
@@ -152,8 +155,11 @@ def convert_mpworks_to_atomate(mpworks_doc, update_mpworks=True):
 
     atomate_doc = {}
     for key_mpworks, key_atomate in settings['task_conversion_keys'].items():
-        val = get_mongolike(mpworks_doc, key_mpworks)
-        set_mongolike(atomate_doc, key_atomate, val)
+        try:
+            val = get_mongolike(mpworks_doc, key_mpworks)
+            set_mongolike(atomate_doc, key_atomate, val)
+        except KeyError:
+            logger.info("Can't find {} key in mpworks doc".format(key_mpworks))
 
     # Task type
     atomate_doc["task_label"] = settings['task_label_conversions'].get(
