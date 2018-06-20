@@ -89,7 +89,8 @@ class PropertyWorkflowBuilder(Builder):
         wf_inputs = self.materials.query(["structure", "task_id"],
                                          self.material_filter, no_cursor_timeout=True)
         # find existing tags in workflows
-        current_prop_ids = self.source.distinct("task_id")
+        if self.source:
+            current_prop_ids = self.source.distinct("task_id")
         current_wf_tags = self.lpad.workflows.distinct("metadata.tags")
         ids_to_filter = list(set(current_prop_ids + current_wf_tags))
         for wf_input in wf_inputs:
@@ -188,6 +189,21 @@ def generate_elastic_workflow(structure, tags=None):
         elif fw.spec.get('elastic_category') == 'minimal_full_stencil':
             fw.spec['_priority'] += 1000
     return wf
+
+def get_bandstructure_wf_builder(materials, lpad=None, material_filter=None):
+    """
+    Args:
+        materials (Store): Materials store
+        lpad (LaunchPad): LaunchPad to add workflows
+        material_filter (dict): filter for materials collection query
+
+    Returns:
+        PropertyWorkflowBuilder for elastic workflow
+    """
+    wf_method = "atomate.vasp.workflows.presets.core.wf_bandstructure"
+    return PropertyWorkflowBuilder(None, materials, lpad,
+                                   material_filter={"has_bandstructure": False})
+
 
 
 def get_elastic_wf_builder(elasticity, materials, lpad=None, material_filter=None):
