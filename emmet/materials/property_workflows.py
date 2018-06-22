@@ -10,7 +10,7 @@ import six
 
 from maggma.builder import Builder
 from atomate.vasp.workflows.presets.core import wf_elastic_constant
-from atomate.vasp.powerups import add_tags, add_modify_incar, add_priority
+from atomate.vasp.powerups import add_tags, add_modify_incar, add_priority, add_wf_metadata
 from atomate.utils.utils import get_fws_and_tasks, load_class
 from pymatgen.analysis.elasticity.tensors import Tensor, SquareTensor,\
         get_tkd_value, symmetry_reduce
@@ -115,6 +115,7 @@ class PropertyWorkflowBuilder(Builder):
             structure = Structure.from_dict(wf_input.get('structure'))
             wf = self.wf_function(structure)
             wf = add_tags(wf, [mat_id])
+            wf = add_wf_metadata(wf, structure)
             return wf
 
     def update_targets(self, items):
