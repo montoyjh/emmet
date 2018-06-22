@@ -201,9 +201,9 @@ def get_bandstructure_wf_builder(materials, lpad=None, material_filter=None):
     Returns:
         PropertyWorkflowBuilder for elastic workflow
     """
+    material_filter = material_filter or {'has_bandstructure': False}
     wf_method = "atomate.vasp.workflows.presets.core.wf_bandstructure"
-    return PropertyWorkflowBuilder(None, materials, lpad,
-                                   material_filter={"has_bandstructure": False})
+    return PropertyWorkflowBuilder(None, materials, lpad, material_filter)
 
 
 
