@@ -29,6 +29,7 @@ __email__ = "montoyjh@lbl.gov"
 # TODO: kind of specific to vasp in the add_tags, improve metadata handling,
 #       in principle this could be abstracted to just build workflows from
 #       collections generally
+# TODO: the source arg doesn't make much sense 
 # TODO: I'm a bit wary to implement an incremental strategy here,
 #       but I think it can be done
 class PropertyWorkflowBuilder(Builder):
@@ -41,7 +42,8 @@ class PropertyWorkflowBuilder(Builder):
         for any workflow that can be invoked from structure data
 
         Args:
-            source (Store): store of properties
+            source (Store): store of existing properties keyed
+                by task_id
             materials (Store): Store of materials properties
             material_filter (dict): dict filter for getting items to process
                 e. g. {"elasticity": None}
@@ -79,6 +81,11 @@ class PropertyWorkflowBuilder(Builder):
         super().__init__(sources=[source, materials],
                          targets=[], **kwargs)
 
+    def connect(self):
+        if self.source:
+            self.source.connect()
+        self.materials.connect()
+
     def get_items(self):
         """
         Gets all items for which new workflows are created
@@ -91,8 +98,11 @@ class PropertyWorkflowBuilder(Builder):
         # find existing tags in workflows
         if self.source:
             current_prop_ids = self.source.distinct("task_id")
+        else:
+            current_prop_ids = []
         current_wf_tags = self.lpad.workflows.distinct("metadata.tags")
         ids_to_filter = list(set(current_prop_ids + current_wf_tags))
+        self.total = wf_inputs.count()
         for wf_input in wf_inputs:
             logger.debug("Processing {}".format(wf_input["task_id"]))
             yield wf_input, ids_to_filter
@@ -203,9 +213,7 @@ def get_bandstructure_wf_builder(materials, lpad=None, material_filter=None):
     """
     material_filter = material_filter or {'has_bandstructure': False}
     wf_method = "atomate.vasp.workflows.presets.core.wf_bandstructure"
-    return PropertyWorkflowBuilder(None, materials, lpad, material_filter)
-
-
+    return PropertyWorkflowBuilder(None, materials, wf_method, material_filter, lpad)
 
 def get_elastic_wf_builder(elasticity, materials, lpad=None, material_filter=None):
     """
